@@ -11,17 +11,40 @@ Release checklist:
 
 Tagging:
 {%- if do_release_notes_doc %}
+{%- if repo_subdirectory %}
+ - [ ] Write release notes in `{{ repo_subdirectory }}/docs/release-notes.md`. Get them reviewed and merged
+{%- else %}
  - [ ] Write release notes in `docs/release-notes.md`. Get them reviewed and merged
+{%- endif %}
+{%- if vendored_ignition_note %}
+   - [ ] Note which Ignition version is vendored in this release
+{%- endif %}
 {%- if sample_signing_key_update_tag %}
    - [ ] If the release signing key has changed because a new Fedora release has gone stable, note the change as done [here](https://github.com/coreos/{{ git_repo }}/releases/tag/{{ sample_signing_key_update_tag }}).
 {%- endif %}
+{%- if repo_subdirectory %}
+   - [ ] If doing a branched release, also include a PR to merge the `{{ repo_subdirectory }}/docs/release-notes.md` changes into main
+{%- else %}
    - [ ] If doing a branched release, also include a PR to merge the `docs/release-notes.md` changes into main
 {%- endif %}
+{%- endif %}
+{%- if repo_subdirectory %}
+ - [ ] Ensure your local copy is up to date with the upstream main branch (`git@github.com:coreos/ignition.git`)
+{%- else %}
  - [ ] Ensure your local copy is up to date with the upstream main branch (`git@github.com:coreos/{{ git_repo }}.git`)
+{%- endif %}
  - [ ] Ensure your working directory is clean (`git clean -fdx`)
+{%- if repo_subdirectory %}
+ - [ ] Ensure {{ pretty_name }}'s vendor directory is synced: `cd {{ repo_subdirectory }} && go mod vendor`
+{%- endif %}
  - [ ] Ensure you can sign commits and any yubikeys/smartcards are plugged in
+{%- if repo_subdirectory %}
+ - [ ] Run `./{{ repo_subdirectory }}/tag_release.sh <vX.Y.z> <git commit hash>` from repository root
+ - [ ] Push that tag to GitHub (format: `{{ tag_prefix }}v0.X.Y` for {{ pretty_name }} releases)
+{%- else %}
  - [ ] Run `./tag_release.sh <vX.Y.z> <git commit hash>`
  - [ ] Push that tag to GitHub
+{%- endif %}
 
 {% if fedora_package %}
 Fedora packaging:
@@ -29,7 +52,11 @@ Fedora packaging:
    - Bump the `Version`
    - Switch the `Release` back to `1%{?dist}`
    - Remove any patches obsoleted by the new release
+{%- if repo_subdirectory %}
+   - Run `go-mods-to-bundled-provides.py | sort` while inside of the `{{ repo_subdirectory }}` directory you ran `./tag_release` from & copy output into spec file in `# Main package provides` section
+{%- else %}
    - Run `go-mods-to-bundled-provides.py | sort` while inside of the `{{ git_repo }}` directory you ran `./tag_release` from & copy output into spec file in `# Main package provides` section
+{%- endif %}
    - Update changelog
  - [ ] Run `spectool -g -S {{ fedora_package }}.spec`
  - [ ] Run `kinit your_fas_account@FEDORAPROJECT.ORG`
@@ -61,15 +88,28 @@ Fedora packaging:
 GitHub release:
 {%- if sample_signing_key_update_tag %}
  - [ ] Wait until the Bodhi update shows "Signed :heavy_check_mark:" in the Metadata box.
+{%- if repo_subdirectory %}
+ - [ ] Verify that the signing script can fetch the release binaries by running `./{{ repo_subdirectory }}/signing-ticket.sh test <x.y.z-r> <output-dir>`, where `r` is the Release of the Fedora package without the dist tag (probably `1`)
+ - [ ] Run `./{{ repo_subdirectory }}/signing-ticket.sh ticket <x.y.z-r>` and paste the output into a [releng ticket](forge.fedoraproject.org/releng/tickets/issues/new).
+{%- else %}
  - [ ] Verify that the signing script can fetch the release binaries by running `./signing-ticket.sh test <x.y.z-r> <output-dir>`, where `r` is the Release of the Fedora package without the dist tag (probably `1`)
  - [ ] Run `./signing-ticket.sh ticket <x.y.z-r>` and paste the output into a [releng ticket](forge.fedoraproject.org/releng/tickets/issues/new).
+{%- endif %}
  - [ ] Wait for the ticket to be closed
  - [ ] Download the artifacts and signatures
  - [ ] Verify the signatures
 {%- endif %}
+{%- if repo_subdirectory %}
+ - [ ] Find the new tag `{{ tag_prefix }}v0.X.Y` in the [GitHub tag list](https://github.com/coreos/ignition/tags) and click the triple dots menu, and create a draft release for it.
+{%- else %}
  - [ ] Find the new tag in the [GitHub tag list](https://github.com/coreos/{{ git_repo }}/tags) and click the triple dots menu, and create a draft release for it.
+{%- endif %}
 {%- if do_release_notes_doc %}
+{%- if repo_subdirectory %}
+ - [ ] Copy and paste the release notes from `{{ repo_subdirectory }}/docs/release-notes.md`
+{%- else %}
  - [ ] Copy and paste the release notes from `docs/release-notes.md`
+{%- endif %}
 {%- else %}
  - [ ] Write release notes
 {%- endif %}
@@ -95,7 +135,11 @@ RHCOS packaging for the current RHCOS development release:
    - Bump the `Version`
    - Switch the `Release` back to `1%{?dist}`
    - Remove any patches obsoleted by the new release
+{%- if repo_subdirectory %}
+   - Run `go-mods-to-bundled-provides.py | sort` while inside of the `{{ repo_subdirectory }}` directory you ran `./tag_release` from & copy output into spec file in `# Main package provides` section
+{%- else %}
    - Run `go-mods-to-bundled-provides.py | sort` while inside of the `{{ git_repo }}` directory you ran `./tag_release` from & copy output into spec file in `# Main package provides` section
+{%- endif %}
    - Update changelog
  - [ ] Run `spectool -g -S {{ rhaos_package }}.spec`
  - [ ] Run `kinit your_account@IPA.REDHAT.COM`
